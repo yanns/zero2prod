@@ -1,8 +1,18 @@
 use std::net::TcpListener;
-use zero2prod::run;
+
+use sqlx::PgPool;
+
+use zero2prod::configuration::get_configuration;
+use zero2prod::startup::run;
 
 #[actix_rt::main]
 async fn main() -> std::io::Result<()> {
-    let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to bind on port 8080");
-    run(listener)?.await
+    let configuration = get_configuration().expect("Failed to read configuration.");
+    let connection = PgPool::connect(&configuration.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres.");
+    let address = format!("127.0.0.1:{}", configuration.application_port);
+    let listener = TcpListener::bind(&address)?;
+    println!("running on http://{}", &address);
+    run(listener, connection)?.await
 }
