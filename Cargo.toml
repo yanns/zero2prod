@@ -9,13 +9,14 @@ path = "src/lib.rs"
 
 [[bin]]
 path = "src/main.rs"
-name = "app"
+name = "zero2prod"
 
 [dependencies]
 actix-web = "3.1.0"
 actix-rt = "1.1.1"
 serde = { version = "1", features = ["derive"]}
-sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros", "postgres", "uuid", "chrono", "migrate"] }
+serde-aux = "1.1.0"
+sqlx = { version = "0.4.0-beta.1", default-features = false, features = [ "runtime-tokio", "macros", "postgres", "uuid", "chrono", "migrate", "offline"] }
 config = "0.10.1"
 uuid = { version = "0.8.1", features = ["v4"] }
 chrono = "0.4.15"
