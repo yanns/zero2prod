@@ -1,8 +1,8 @@
+use crate::domain::{NewSubscriber, SubscriberName};
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
 use uuid::Uuid;
-use crate::domain::{NewSubscriber, SubscriberName};
 
 #[derive(serde::Deserialize)]
 pub struct SubscribeRequest {
@@ -26,8 +26,8 @@ pub async fn subscribe(
     if payload.email.trim().is_empty() {
         return Err(HttpResponse::BadRequest().finish());
     }
-    let name = SubscriberName::parse(payload.0.name)
-        .map_err(|_| HttpResponse::BadRequest().finish())?;
+    let name =
+        SubscriberName::parse(payload.0.name).map_err(|_| HttpResponse::BadRequest().finish())?;
     let new_subscriber = NewSubscriber {
         email: payload.0.email,
         name,
