@@ -1,13 +1,24 @@
-use crate::domain::{NewSubscriber, SubscriberName};
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 use actix_web::{web, HttpResponse};
 use chrono::Utc;
 use sqlx::PgPool;
+use std::convert::TryInto;
 use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct SubscribeRequest {
     email: String,
     name: String,
+}
+
+impl TryInto<NewSubscriber> for SubscribeRequest {
+    type Error = String;
+
+    fn try_into(self) -> Result<NewSubscriber, Self::Error> {
+        let name = SubscriberName::parse(self.name)?;
+        let email = SubscriberEmail::parse(self.email)?;
+        Ok(NewSubscriber { email, name })
+    }
 }
 
 #[tracing::instrument(
@@ -23,15 +34,10 @@ pub async fn subscribe(
     payload: web::Form<SubscribeRequest>,
     pool: web::Data<PgPool>,
 ) -> Result<HttpResponse, HttpResponse> {
-    if payload.email.trim().is_empty() {
-        return Err(HttpResponse::BadRequest().finish());
-    }
-    let name =
-        SubscriberName::parse(payload.0.name).map_err(|_| HttpResponse::BadRequest().finish())?;
-    let new_subscriber = NewSubscriber {
-        email: payload.0.email,
-        name,
-    };
+    let new_subscriber = payload
+        .0
+        .try_into()
+        .map_err(|_| HttpResponse::BadRequest().finish())?;
     insert_subscriber(&pool, &new_subscriber)
         .await
         .map_err(|_| HttpResponse::InternalServerError().finish())?;
@@ -52,7 +58,7 @@ pub async fn insert_subscriber(
     VALUES ($1, $2, $3, $4)
             "#,
         Uuid::new_v4(),
-        new_subscriber.email,
+        new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now()
     )
