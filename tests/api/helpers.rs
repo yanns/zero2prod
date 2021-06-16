@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -7,14 +8,21 @@ use zero2prod::startup::get_connection_pool;
 use zero2prod::startup::Application;
 use zero2prod::telemetry::{get_subscriber, init_subscriber};
 
-// Ensure that the `tracing` stack is only initialised once using `lazy_static`
-lazy_static::lazy_static! {
-    static ref TRACING: () = {
-        let filter = if std::env::var("TEST_LOG").is_ok() { "debug" } else { "" };
-        let subscriber = get_subscriber("test".into(), filter.into());
+// Ensure that the `tracing` stack is only initialised once using `once_cell`
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let default_filter_level = "info".to_string();
+    let subscriber_name = "test".to_string();
+    // We cannot assign the output of `get_subscriber` to a variable based on the value of `TEST_LOG`
+    // because the sink is part of the type returned by `get_subscriber`, therefore they are not the
+    // same type. We could work around it, but this is the most straight-forward way of moving forward.
+    if std::env::var("TEST_LOG").is_ok() {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::stdout);
+        init_subscriber(subscriber);
+    } else {
+        let subscriber = get_subscriber(subscriber_name, default_filter_level, std::io::sink);
         init_subscriber(subscriber);
     };
-}
+});
 
 pub struct TestApp {
     pub address: String,
@@ -67,7 +75,7 @@ impl TestApp {
 
 // Launch our application in the background ~somehow~
 pub async fn spawn_app() -> TestApp {
-    lazy_static::initialize(&TRACING);
+    Lazy::force(&TRACING);
 
     let email_server = MockServer::start().await;
 
